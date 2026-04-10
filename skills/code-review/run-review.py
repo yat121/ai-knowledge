@@ -32,6 +32,9 @@ SKIP_DIRS = {
     ".env",
     "venv/bin",
     "venv/lib",
+    "site-packages",
+    "lib/python",
+    "lib64",
 }
 
 
