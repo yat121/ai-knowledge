@@ -1,0 +1,37 @@
+name: Deploy Alpha 360
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'alpha360/**'
+      - 'docker/alpha360/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Sync to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/dashboards/alpha360
+            rsync -avz --delete ${{ github.workspace }}/alpha360/frontend/ ./frontend/
+            rsync -avz --delete ${{ github.workspace }}/alpha360/backend/ ./backend/
+            rsync -avz --delete ${{ github.workspace }}/docker/alpha360/ ./
+            docker-compose down
+            docker-compose up -d --build
+            docker-compose logs --tail=20
+      
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://alpha360.starcrab.space || exit 1

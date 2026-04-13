@@ -1,0 +1,58 @@
+name: Deploy All Dashboards
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-alpha360:
+    runs-on: ubuntu-latest
+    if: contains(join(together(job.modified_files), ','), 'alpha360')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/dashboards/alpha360
+            docker-compose pull
+            docker-compose up -d --build
+            sleep 5
+            curl -f https://alpha360.starcrab.space || echo "Alpha360 health check failed"
+
+  deploy-property:
+    runs-on: ubuntu-latest
+    if: contains(join(together(job.modified_files), ','), 'property')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/dashboards/property
+            docker-compose pull
+            docker-compose up -d --build
+            sleep 5
+            curl -f https://property.starcrab.space || echo "Property health check failed"
+
+  deploy-quant:
+    runs-on: ubuntu-latest
+    if: contains(join(together(job.modified_files), ','), 'quant')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/dashboards/quant
+            docker-compose pull
+            docker-compose up -d --build
+            sleep 5
+            curl -f https://quant.starcrab.space || echo "Quant health check failed"
