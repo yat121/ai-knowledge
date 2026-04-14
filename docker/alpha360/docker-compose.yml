@@ -1,0 +1,90 @@
+# ============================================
+# Docker Compose for Alpha 360 (Simplified)
+# ============================================
+
+services:
+  # Frontend - Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alpha360-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=/api
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alpha360.rule=Host(`alpha360.starcrab.space`)"
+      - "traefik.http.routers.alpha360.entrypoints=websecure"
+      - "traefik.http.routers.alpha360.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alpha360.loadbalancer.server.port=3000"
+
+  # Backend - Express + Prisma
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alpha360-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    environment:
+      - DATABASE_URL=postgresql://alpha360:alpha360_pass_2026@postgres:5432/alpha360
+      - PORT=8000
+      - NODE_ENV=production
+    networks:
+      - traefik-public
+      - alpha360-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`alpha360.starcrab.space`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: alpha360-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alpha360 -d alpha360"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - POSTGRES_USER=alpha360
+      - POSTGRES_PASSWORD=alpha360_pass_2026
+      - POSTGRES_DB=alpha360
+    volumes:
+      - postgres_data_alpha360:/var/lib/postgresql/data
+    networks:
+      - alpha360-internal
+    labels:
+      - "traefik.enable=false"
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true
+  alpha360-internal:
+    driver: bridge
+
+volumes:
+  postgres_data_alpha360:
